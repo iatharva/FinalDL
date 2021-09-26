@@ -14,6 +14,8 @@ app = Flask(__name__)
 camera = cv2.VideoCapture(2)
 model=keras.models.load_model('sign_language_model.h5')
 cm_Plot_labels=['0','1','2','3','4','5','6','7','8','9','A','Aboard','All_Gone','B','Baby','Beside','Book','Bowl','Bridge','C','Camp','Cartridge','D','E','F','Fond','Friend','G','Glove','H','Hang','High','House','How_many','I','J','K','L','M','Man','Marry','Meat','Medal','Middle','Money','Mother','N','O','Opposite','P','Prisoner','Q','R','Ring','Rose','S','See','Short','Superior','T','Tabacoo','Thick','Thin','U','V','W','Watch','Write','X','Y','You','Z']
+global resultedIndex;
+resultedIndex= 'Hmm';
 
 def process_frame(encodedImage):
     frame=cv2.flip(encodedImage, 1)
@@ -23,25 +25,23 @@ def process_frame(encodedImage):
     img = img.astype('float32')/ 255.0
     return img
 
-
 def gen_frames():
     while True:
         ret, frame = camera.read()
         (flag, encodedImage) = cv2.imencode(".jpg", frame)
         if ret:
             image1=process_frame(encodedImage)
-            predict_result(image1)
-            TextImage=cv2.rectangle(encodedImage, (10, 10), (100, 100), (0, 255, 0), 2)
-            #TextImage=cv2.putText(encodedImage, resultvalue, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0, 0), 10)
+            pred = model.predict(image1)
+            resultOfPredication = np.argmax(pred)
+            #debugpy.breakpoint()
+            #resultedIndex = cm_Plot_labels[resultOfPredication]
+            resultedIndex = cm_Plot_labels[resultOfPredication]
+            print(cm_Plot_labels[resultOfPredication])
             yield (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + bytearray(TextImage) + b'\r\n\r\n')
+                   b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n\r\n')
 
-def predict_result(image1):
-    pred = model.predict(image1)
-    resultOfPredication = np.argmax(pred)
-    resultvalue = cm_Plot_labels[resultOfPredication]
-    print(resultvalue)
-    return resultvalue
+def pass_result():
+    return resultedIndex
 
 @app.route('/')
 def index():
@@ -50,7 +50,7 @@ def index():
 @app.route('/project.html', methods= ['GET'])
 def project(output='demo'):
     gen_frames()
-    r1 = predict_result()
+    r1 = pass_result()
     return render_template('project.html', output=r1)
 
 @app.route('/video_feed')
@@ -60,7 +60,7 @@ def video_feed():
 @app.route('/result_text', methods= ['GET'])
 def result_text():
     gen_frames()
-    r = predict_result()
+    r = pass_result()
     response = make_response(r, 200)
     response.mimetype = "text/plain"
     return response
